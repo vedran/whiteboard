@@ -27,8 +27,11 @@ new_pixel = Pixel.new(0,0,0,1)
 imgList = imgList.edge(8)
 view = Image::View.new(imgList, 0, 0, imgList.bounding_box.width, imgList.bounding_box.height)
 
-begin
-view[][].each_with_index do |pixel, index|
+view.sync
+imgList.display
+imgList.write("after_edge_detection.png")
+
+view[][].each do |pixel|
 	#eliminate all not perfect reds
 	if !(pixel.red == quantumify(255) && pixel.green == 0 && pixel.blue == 0)
 		pixel.red = pixel.green = pixel.blue = 0; 
@@ -36,20 +39,16 @@ view[][].each_with_index do |pixel, index|
 end
 
 view.sync
+imgList.write("after_colour_correction.png")
+
 new_view = Image::View.new(imgList, 0, 0, imgList.bounding_box.width, imgList.bounding_box.height)
 
 for cur_x in (0..imgList.bounding_box.width-1) do
 	for cur_y in (0..imgList.bounding_box.height-1) do
-		imgList.bounding_box.width = 2
 
 		if view[cur_y][cur_x].red == 0
 			next
 		end
-
-=begin
-		cur_x = (index % imgList.bounding_box.width).to_i
-		cur_y = (index / imgList.bounding_box.width).to_i
-=end
 
 		min_x = cur_x - 1 > 0 ? cur_x - 1: 0
 		max_x = cur_x + 1 < imgList.bounding_box.width - 1 ? cur_x + 1 : imgList.bounding_box.width - 1
@@ -63,12 +62,7 @@ for cur_x in (0..imgList.bounding_box.width-1) do
 		end
 	end
 end
-
-#view.sync
 new_view.sync
-imgList.write("output.png")
 imgList.display
-
-
-end
+imgList.write("final_output.png")
 
