@@ -44,31 +44,13 @@ def is_blob_square?(blob)
 	top = blob.min_y
 	bottom = blob.max_y
 	
-	left_count = 0
-	right_count = 0
-	top_count = 0
-	bottom_count = 0
+	width = right - left
+	height = bottom - top
 
-	blob.points.map do |p|
-		if (p[0] - left).abs <= 2
-			left_count += 1		
-		elsif (p[0] - right).abs <= 2
-			right_count += 1		
-		end
-
-		if (p[1] - top).abs <= 2
-			top_count += 1		
-		elsif (p[1] - bottom).abs <= 2
-			bottom_count += 1		
-		end
-	end
-	
-	height_ratio = left_count.to_f / right_count.to_f
-	width_ratio = top_count.to_f / bottom_count.to_f
-
-	puts height_ratio.to_s + ", " + width_ratio.to_s
-
-	height_ratio > 0.75 && height_ratio < 1.25 && width_ratio > 0.75 && width_ratio  < 1.25
+	#a square placed on top of the blob
+	#check the amount of pixels that don't 'fill' the square
+	puts blob.points.length.to_s + ", " + (width * height).to_s
+	(blob.points.length.to_f / (width * height).to_f).to_f >= 0.9
 end
 
 def in_image_bounds?(image, x, y)
@@ -84,7 +66,7 @@ end
 def find_blob(view, image, blobs, x, y)
 	blob = Blob.new
 	find_blobs_recursive(view, image, blob, x, y)
-	blobs << blob if blob.points.length > 10 && is_blob_square?(blob)
+	blobs << blob if blob.points.length > 30 && is_blob_square?(blob)
 end
 
 def find_blobs_recursive(my_view, image, blob, x, y)
@@ -107,13 +89,12 @@ end
 #img = Image.new(200,200) { self.background_color = Pixel.new(quantumify(214), quantumify(124), quantumify(124)) }
 #view = Image::View.new(img, 0, 0, 200, 200);
 #img_list = ImageList.new("webcam-capture.bmp")
-img_list = ImageList.new("webcam-capture.png")
+img_list = ImageList.new("webcam-capture.jpeg")
 
 #targetPixel = Pixel.new(195,102,116);
 #targetPixel = Pixel.new(214, 124, 124);
 target_pixel = Pixel.new(quantumify(249), quantumify(145), quantumify(138))
 
-img_list.equalize_channel(RedChannel)
 
 #img_list.display
 
