@@ -38,7 +38,7 @@ def quantumify(number)
 	(number.to_f / 255.0) * Magick::QuantumRange
 end
 
-def is_blob_square?(blob)
+def is_blob_rect?(blob)
 	left = blob.min_x
 	right = blob.max_x
 	top = blob.min_y
@@ -49,8 +49,12 @@ def is_blob_square?(blob)
 
 	#a square placed on top of the blob
 	#check the amount of pixels that don't 'fill' the square
-	puts blob.points.length.to_s + ", " + (width * height).to_s
-	(blob.points.length.to_f / (width * height).to_f).to_f >= 0.9
+#	puts blob.avg_x.to_s + ", " + blob.avg_y.to_s
+	coverage = (blob.points.length.to_f / (width * height).to_f).to_f
+
+	puts "top: " + top.to_s + ", left: " + left.to_s + ", data: " + blob.points.length.to_s + ", " + (width * height).to_s + " : " + coverage.to_s + ", " +  (coverage >= 0.8 && coverage <= 1.5).to_s
+
+	coverage >= 0.8 && coverage <= 1.5
 end
 
 def in_image_bounds?(image, x, y)
@@ -66,7 +70,7 @@ end
 def find_blob(view, image, blobs, x, y)
 	blob = Blob.new
 	find_blobs_recursive(view, image, blob, x, y)
-	blobs << blob if blob.points.length > 30 && is_blob_square?(blob)
+	blobs << blob if blob.points.length > 20 && is_blob_rect?(blob)
 end
 
 def find_blobs_recursive(my_view, image, blob, x, y)
@@ -89,7 +93,7 @@ end
 #img = Image.new(200,200) { self.background_color = Pixel.new(quantumify(214), quantumify(124), quantumify(124)) }
 #view = Image::View.new(img, 0, 0, 200, 200);
 #img_list = ImageList.new("webcam-capture.bmp")
-img_list = ImageList.new("webcam-capture.jpeg")
+img_list = ImageList.new("webcam-capture.bmp")
 
 #targetPixel = Pixel.new(195,102,116);
 #targetPixel = Pixel.new(214, 124, 124);
@@ -129,7 +133,7 @@ for cur_x in (0..width) do
 		#	next
 		#end
 
-		if (2 * view[cur_y][cur_x].red) - (view[cur_y][cur_x].green + view[cur_y][cur_x].blue) > quantumify(80)
+		if (2 * view[cur_y][cur_x].red) - (view[cur_y][cur_x].green + view[cur_y][cur_x].blue) > quantumify(110)
 			new_view[cur_y][cur_x].red = quantumify(255)
 			new_view[cur_y][cur_x].green = new_view[cur_y][cur_x].blue = 0
 			#find_blob(new_view, img_list, blobs, cur_x, cur_y)
@@ -171,7 +175,7 @@ blobs.each do |b|
 end
 
 new_view.sync
-#blank_img.display
+blank_img.display
 blank_img.write("final-output.png")
 #img_list.display
 #ist https://gist.github.com/947709mg_list.write("final_output.png")
