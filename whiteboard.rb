@@ -51,9 +51,6 @@ def is_blob_rect?(blob)
 	#check the amount of pixels that don't 'fill' the square
 #	puts blob.avg_x.to_s + ", " + blob.avg_y.to_s
 	coverage = (blob.points.length.to_f / (width * height).to_f).to_f
-
-	puts "top: " + top.to_s + ", left: " + left.to_s + ", data: " + blob.points.length.to_s + ", " + (width * height).to_s + " : " + coverage.to_s + ", " +  (coverage >= 0.8 && coverage <= 1.5).to_s
-
 	coverage >= 0.8 && coverage <= 1.5
 end
 
@@ -75,9 +72,7 @@ end
 
 def find_blobs_recursive(my_view, image, blob, x, y)
 	if in_image_bounds?(image, x, y) && my_view[y][x].red == quantumify(255)
-		#puts "adding a point: " + x.to_s + ", " + y.to_s
 		blob.add_point(x, y)
-		#puts blob.inspect	
 
 		#mark this as already added to blob by changing its colour
 		my_view[y][x].red = my_view[y][x].green = 0
@@ -89,79 +84,27 @@ def find_blobs_recursive(my_view, image, blob, x, y)
 	return nil
 end
 
+img_list = ImageList.new("test.png")
 
-#img = Image.new(200,200) { self.background_color = Pixel.new(quantumify(214), quantumify(124), quantumify(124)) }
-#view = Image::View.new(img, 0, 0, 200, 200);
-#img_list = ImageList.new("webcam-capture.bmp")
-img_list = ImageList.new("webcam-capture.bmp")
-
-#targetPixel = Pixel.new(195,102,116);
-#targetPixel = Pixel.new(214, 124, 124);
-target_pixel = Pixel.new(quantumify(249), quantumify(145), quantumify(138))
-
-
-#img_list.display
-
-#img_list = img_list.edge(20)
-view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
-
-#view.sync
-#img_list.display
-#img_list.write("after_edge_detection.png")
-
-#view[][].each do |pixel|
-	#eliminate all not perfect reds
-#	if !(pixel.red == quantumify(255) && pixel.green == 0 && pixel.blue == 0)
-#		pixel.red = pixel.green = pixel.blue = 0; 
-#	end
-#end
-
-#view.sync
-#img_list.write("after_colour_correction.png")
-
-blank_img = Image.new(img_list.cur_image.columns, img_list.cur_image.rows) { self.background_color = "black" }
-new_view = Image::View.new(blank_img, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
+blob_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
+orig_img_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
 
 blobs = []
 width = img_list.bounding_box.width-1
 height = img_list.bounding_box.height-1
 
-for cur_x in (0..width) do
-	for cur_y in (0..height) do
+blob_view[][].map do |pixel|
 
-		#if view[cur_y][cur_x].red == 0
-		#	next
-		#end
-
-		if (2 * view[cur_y][cur_x].red) - (view[cur_y][cur_x].green + view[cur_y][cur_x].blue) > quantumify(110)
-			new_view[cur_y][cur_x].red = quantumify(255)
-			new_view[cur_y][cur_x].green = new_view[cur_y][cur_x].blue = 0
-			#find_blob(new_view, img_list, blobs, cur_x, cur_y)
-		end
-=begin
-		min_x = cur_x - 1 > 0 ? cur_x - 1: 0
-		max_x = cur_x + 1 < img_list.bounding_box.width - 1 ? cur_x + 1 : img_list.bounding_box.width - 1
-
-		min_y = cur_y - 1 > 0 ? cur_y - 1: 0
-		max_y = cur_y + 1 < img_list.bounding_box.height- 1 ? cur_y + 1 : img_list.bounding_box.height - 1
-=end
-#		if (view[min_y][min_x].red == 0 || view[min_y][max_x].red == 0 || view[max_y][min_x].red == 0 || view[max_y][max_x].red == 0 ||
-#			view[cur_y][min_x].red == 0 || view[cur_y][max_x].red == 0 || view[min_y][cur_x].red == 0 || view[max_y][cur_x].red == 0)
-#			new_view[cur_y][cur_x].red = 0
-
-		#neighbours(img_list, cur_x, cur_y).map do |xy|
-	#		if view[xy[1]][xy[0]].red == 0
-#				new_view[cur_y][cur_x].red = 0
-#				break
-#			end
-#		end
+	if (2 * pixel.red) - (pixel.green + pixel.blue) > quantumify(110)
+		pixel.red = quantumify(255)
+		pixel.green = pixel.blue = 0
 	end
 end
 
 for cur_x in (0..width) do
 	for cur_y in (0..height) do
-		if new_view[cur_y][cur_x].red == quantumify(255)
-			find_blob(new_view, img_list, blobs, cur_x, cur_y)
+		if blob_view[cur_y][cur_x].red == quantumify(255)
+			find_blob(blob_view, img_list, blobs, cur_x, cur_y)
 		end
 	end
 end
@@ -169,13 +112,11 @@ end
 
 blobs.each do |b|
 	b.points.each do |p|	
-		new_view[p[1]][p[0]].red = new_view[p[1]][p[0]].blue = 0
-		new_view[p[1]][p[0]].green = quantumify(255)
+		orig_img_view[p[1]][p[0]].red = orig_img_view[p[1]][p[0]].blue = 0
+		orig_img_view[p[1]][p[0]].green = quantumify(255)
 	end
 end
 
-new_view.sync
-blank_img.display
-blank_img.write("final-output.png")
+orig_img_view.sync
+img_list.write("final-output.png")
 #img_list.display
-#ist https://gist.github.com/947709mg_list.write("final_output.png")
