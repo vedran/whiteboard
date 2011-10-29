@@ -52,7 +52,7 @@ def is_blob_rect?(blob)
 #	puts blob.avg_x.to_s + ", " + blob.avg_y.to_s
 	coverage = (blob.points.uniq.length.to_f / (width * height).to_f).to_f
 	puts blob.min_x.to_s + " - " + blob.max_x.to_s + ", " + blob.min_y.to_s + " - " + blob.max_y.to_s + ", " + blob.points.length.to_f.to_s + ", " + "w: " + width.to_s + ", h: " + height.to_s + " : cov: " + coverage.to_s
-	coverage >= 0.90 && coverage <= 1.25
+	coverage >= 0.80 && coverage <= 1.3
 end
 
 def in_image_bounds?(image, x, y)
@@ -84,41 +84,65 @@ def find_blob(my_view, image, blobs, x, y)
 		end
 	end
 
-	blobs << blob if blob.points.length > 20 && is_blob_rect?(blob)
+	blobs << blob if blob.points.length > 15 && is_blob_rect?(blob)
 end
 
-img_list = ImageList.new("webcam-capture.png")
-blob_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
-orig_img_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
+old_filename = ""
+newest_image_command = "ls shots/ -rt | tail -1"
+filename = %x[#{newest_image_command}].inspect.gsub("\"", "")
+filename.gsub!("\\n", "")
 
-blobs = []
-width = img_list.bounding_box.width-1
-height = img_list.bounding_box.height-1
-
-blob_view[][].map do |pixel|
-	if (2 * pixel.red) - (pixel.green + pixel.blue) > quantumify(100)
-		pixel.red = quantumify(255)
-		pixel.green = pixel.blue = 0
-	else
-		pixel.red = pixel.green = pixel.blue = 0
+while 1
+	while filename == old_filename
+		newest_image_command = "ls shots/ -rt | tail -1"
+		filename = %x[#{newest_image_command}].inspect.gsub("\"", "")
+		filename.gsub!("\\n", "")
+		puts "current file: " + filename
+		sleep 2
 	end
-end
 
+	puts "loading new file: " + filename
+	img_list = ImageList.new("shots/#{filename}")
+	%x[`rm shots/shot*`]
+	img_list.rotate!(180)
+	blob_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
+	orig_img_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
 
-for cur_x in (0..width) do
-	for cur_y in (0..height) do
-		if blob_view[cur_y][cur_x].red == quantumify(255)
-			find_blob(blob_view, img_list, blobs, cur_x, cur_y)
+	blobs = []
+	width = img_list.bounding_box.width-1
+	height = img_list.bounding_box.height-1
+
+	blob_view[][].map do |pixel|
+		if (2 * pixel.red) - (pixel.green + pixel.blue) > quantumify(130)
+			pixel.red = quantumify(255)
+			pixel.green = pixel.blue = 0
+		else
+			pixel.red = pixel.green = pixel.blue = 0
 		end
 	end
-end
 
-blobs.each do |b|
-	b.points.each do |p|	
-		orig_img_view[p[1]][p[0]].red = orig_img_view[p[1]][p[0]].blue = 0
-		orig_img_view[p[1]][p[0]].green = quantumify(255)
+
+#	blob_view.sync
+#	img_list.display
+
+	for cur_x in (0..width) do
+		for cur_y in (0..height) do
+			if blob_view[cur_y][cur_x].red == quantumify(255)
+				find_blob(blob_view, img_list, blobs, cur_x, cur_y)
+			end
+		end
 	end
-end
 
-orig_img_view.sync
-img_list.write("final-output.png")
+
+	blobs.each do |b|
+		b.points.each do |p|	
+			orig_img_view[p[1]][p[0]].red = orig_img_view[p[1]][p[0]].blue = 0
+			orig_img_view[p[1]][p[0]].green = quantumify(255)
+		end
+	end
+
+	orig_img_view.sync
+	img_list.write("output/#{filename}")
+
+	old_filename = filename
+end
