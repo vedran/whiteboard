@@ -48,10 +48,11 @@ def is_blob_rect?(blob)
 	height = bottom - top
 
 	#a square placed on top of the blob
-	#check the amount of pixels that don't 'fill' the square
+	#check the percentage of pixels that don't 'fill' the square, or go past the square
 #	puts blob.avg_x.to_s + ", " + blob.avg_y.to_s
-	coverage = (blob.points.length.to_f / (width * height).to_f).to_f
-	coverage >= 0.8 && coverage <= 1.5
+	coverage = (blob.points.uniq.length.to_f / (width * height).to_f).to_f
+	puts blob.min_x.to_s + " - " + blob.max_x.to_s + ", " + blob.min_y.to_s + " - " + blob.max_y.to_s + ", " + blob.points.length.to_f.to_s + ", " + "w: " + width.to_s + ", h: " + height.to_s + " : cov: " + coverage.to_s
+	coverage >= 0.90 && coverage <= 1.25
 end
 
 def in_image_bounds?(image, x, y)
@@ -64,28 +65,29 @@ def neighbours(image, x, y)
 	end
 end
 
-def find_blob(view, image, blobs, x, y)
+def find_blob(my_view, image, blobs, x, y)
 	blob = Blob.new
-	find_blobs_recursive(view, image, blob, x, y)
+	stack = []
+	stack << [x, y]
+
+	while(!stack.empty?)
+		next_pixel = stack.pop
+		blob.add_point(*next_pixel)
+
+		my_view[next_pixel[1]][next_pixel[0]].red = 0
+		my_view[next_pixel[1]][next_pixel[0]].blue = quantumify(255)
+
+		neighbours(image, *next_pixel).each do |xy|
+			if my_view[xy[1]][xy[0]].red == quantumify(255)
+				stack << [xy[0], xy[1]]
+			end
+		end
+	end
+
 	blobs << blob if blob.points.length > 20 && is_blob_rect?(blob)
 end
 
-def find_blobs_recursive(my_view, image, blob, x, y)
-	if in_image_bounds?(image, x, y) && my_view[y][x].red == quantumify(255)
-		blob.add_point(x, y)
-
-		#mark this as already added to blob by changing its colour
-		my_view[y][x].red = my_view[y][x].green = 0
-		my_view[y][x].blue = quantumify(255) 
-		neighbours(image, x, y).map do |xy|
-			find_blobs_recursive(my_view, image, blob, xy[0], xy[1]).inspect
-		end
-	end
-	return nil
-end
-
-img_list = ImageList.new("test.png")
-
+img_list = ImageList.new("webcam-capture.png")
 blob_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
 orig_img_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
 
@@ -94,12 +96,14 @@ width = img_list.bounding_box.width-1
 height = img_list.bounding_box.height-1
 
 blob_view[][].map do |pixel|
-
-	if (2 * pixel.red) - (pixel.green + pixel.blue) > quantumify(110)
+	if (2 * pixel.red) - (pixel.green + pixel.blue) > quantumify(100)
 		pixel.red = quantumify(255)
 		pixel.green = pixel.blue = 0
+	else
+		pixel.red = pixel.green = pixel.blue = 0
 	end
 end
+
 
 for cur_x in (0..width) do
 	for cur_y in (0..height) do
@@ -108,7 +112,6 @@ for cur_x in (0..width) do
 		end
 	end
 end
-
 
 blobs.each do |b|
 	b.points.each do |p|	
@@ -119,4 +122,3 @@ end
 
 orig_img_view.sync
 img_list.write("final-output.png")
-#img_list.display
