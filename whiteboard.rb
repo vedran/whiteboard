@@ -98,7 +98,7 @@ while 1
 		filename = %x[#{newest_image_command}].inspect.gsub("\"", "")
 		filename.gsub!("\\n", "")
 		puts "current file: " + filename
-		sleep 2
+		sleep 1 
 	end
 
 	puts "loading new file: " + filename
