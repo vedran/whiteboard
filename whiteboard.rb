@@ -50,9 +50,9 @@ def is_blob_rect?(blob)
 	#a square placed on top of the blob
 	#check the percentage of pixels that don't 'fill' the square, or go past the square
 #	puts blob.avg_x.to_s + ", " + blob.avg_y.to_s
-	coverage = (blob.points.uniq.length.to_f / (width * height).to_f).to_f
-	puts blob.min_x.to_s + " - " + blob.max_x.to_s + ", " + blob.min_y.to_s + " - " + blob.max_y.to_s + ", " + blob.points.length.to_f.to_s + ", " + "w: " + width.to_s + ", h: " + height.to_s + " : cov: " + coverage.to_s
-	coverage >= 0.80 && coverage <= 1.3
+	coverage = (blob.points.uniq.length.to_f / (width * width).to_f).to_f
+	puts blob.min_x.to_s + " - " + blob.max_x.to_s + ", " + blob.min_y.to_s + " - " + blob.max_y.to_s + ", total px: " + blob.points.uniq.length.to_f.to_s + ", " + "w: " + width.to_s + ", h: " + height.to_s + " : cov: " + coverage.to_s
+	coverage >= 0.75 && coverage <= 1.25
 end
 
 def in_image_bounds?(image, x, y)
@@ -84,27 +84,39 @@ def find_blob(my_view, image, blobs, x, y)
 		end
 	end
 
-	blobs << blob if blob.points.length > 15 && is_blob_rect?(blob)
+	blobs << blob if blob.points.uniq.length > 30 && is_blob_rect?(blob)
 end
 
+
+=begin
 old_filename = ""
-newest_image_command = "ls shots/ -rt | tail -1"
+newest_image_command = "ls shots/ -rt | grep .png | tail -1"
 filename = %x[#{newest_image_command}].inspect.gsub("\"", "")
 filename.gsub!("\\n", "")
 
 while 1
 	while filename == old_filename
-		newest_image_command = "ls shots/ -rt | tail -1"
-		filename = %x[#{newest_image_command}].inspect.gsub("\"", "")
-		filename.gsub!("\\n", "")
-		puts "current file: " + filename
+		if !filename.nil?
+			filename = %x[#{newest_image_command}].inspect.gsub("\"", "")
+			filename.gsub!("\\n", "")
+			puts "current file: " + filename
+		end
+		
 		sleep 1 
 	end
+=end
 
+#=begin
+i = 4
+while 1
+	filename = "shot" + (sprintf '%04d',i) + ".png"
+
+#=end
+#	filename = "shot0032.png"
 	puts "loading new file: " + filename
 	img_list = ImageList.new("shots/#{filename}")
-	%x[`rm shots/shot*`]
 	img_list.rotate!(180)
+#	%x[`rm shots/*.png`]
 	blob_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
 	orig_img_view = Image::View.new(img_list, 0, 0, img_list.cur_image.columns, img_list.cur_image.rows)
 
@@ -113,7 +125,7 @@ while 1
 	height = img_list.bounding_box.height-1
 
 	blob_view[][].map do |pixel|
-		if (2 * pixel.red) - (pixel.green + pixel.blue) > quantumify(130)
+		if (2 * pixel.red) - (pixel.green + pixel.blue) > quantumify(100)
 			pixel.red = quantumify(255)
 			pixel.green = pixel.blue = 0
 		else
@@ -122,8 +134,11 @@ while 1
 	end
 
 
-#	blob_view.sync
-#	img_list.display
+
+#	img_list.write("output/#{filename}_orig.png")
+	blob_view.sync
+	img_list.write("output/#{filename}_blobs.png")
+	orig_img_view.sync
 
 	for cur_x in (0..width) do
 		for cur_y in (0..height) do
@@ -139,10 +154,17 @@ while 1
 			orig_img_view[p[1]][p[0]].red = orig_img_view[p[1]][p[0]].blue = 0
 			orig_img_view[p[1]][p[0]].green = quantumify(255)
 		end
+#draw the center point as a blue pixel
+		orig_img_view[(b.max_y+b.min_y)/2][(b.max_x+b.min_x)/2].green = 0;
+		orig_img_view[(b.max_y+b.min_y)/2][(b.max_x+b.min_x)/2].blue = quantumify(255);
+
 	end
 
-	orig_img_view.sync
-	img_list.write("output/#{filename}")
+	if(blobs.length > 0)
+		orig_img_view.sync
+		img_list.write("output/#{filename}")
+	end
 
 	old_filename = filename
+	i += 1
 end
