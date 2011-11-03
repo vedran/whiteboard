@@ -32,6 +32,9 @@ class Blob
 		@avg_y = ((@avg_y * (@points.length-1)) + y) / (@points.length)
 	end
 
+	def center_point
+		[(@min_x + @max_x)/2, (@min_y + @max_y)/2]
+	end
 end
 
 def quantumify(number)
@@ -65,7 +68,7 @@ def neighbours(image, x, y)
 	end
 end
 
-def find_blob(my_view, image, blobs, x, y)
+def find_blob(view, image, blobs, x, y)
 	blob = Blob.new
 	stack = []
 	stack << [x, y]
@@ -74,11 +77,11 @@ def find_blob(my_view, image, blobs, x, y)
 		next_pixel = stack.pop
 		blob.add_point(*next_pixel)
 
-		my_view[next_pixel[1]][next_pixel[0]].red = 0
-		my_view[next_pixel[1]][next_pixel[0]].blue = quantumify(255)
+		view[next_pixel[1]][next_pixel[0]].red = 0
+		view[next_pixel[1]][next_pixel[0]].blue = quantumify(255)
 
 		neighbours(image, *next_pixel).each do |xy|
-			if my_view[xy[1]][xy[0]].red == quantumify(255)
+			if view[xy[1]][xy[0]].red == quantumify(255)
 				stack << [xy[0], xy[1]]
 			end
 		end
@@ -87,6 +90,28 @@ def find_blob(my_view, image, blobs, x, y)
 	blobs << blob if blob.points.uniq.length > 30 && is_blob_rect?(blob)
 end
 
+def find_bounding_rect(view, image, blobs)
+
+	blobs.each do |top_blob|
+
+		blobs.each do |bottom_blob|
+
+			if top_blob == bottom_blob
+				next
+			end
+
+			#temporary
+			puts "comparing: " + top_blob.center_point[0].to_s + " to " + bottom_blob.center_point.to_s
+			if (top_blob.center_point[0] - bottom_blob.center_point[0]).abs < 10
+				puts "match at " + top_blob.center_point.to_s + " and " + bottom_blob.center_point.to_s
+
+				for y in (top_blob.center_point[1]..bottom_blob.center_point[1])
+					view[y][top_blob.center_point[0]].green = quantumify(255)
+				end
+			end
+		end		
+	end
+end
 
 =begin
 old_filename = ""
@@ -154,11 +179,16 @@ while 1
 			orig_img_view[p[1]][p[0]].red = orig_img_view[p[1]][p[0]].blue = 0
 			orig_img_view[p[1]][p[0]].green = quantumify(255)
 		end
-#draw the center point as a blue pixel
-		orig_img_view[(b.max_y+b.min_y)/2][(b.max_x+b.min_x)/2].green = 0;
-		orig_img_view[(b.max_y+b.min_y)/2][(b.max_x+b.min_x)/2].blue = quantumify(255);
+
+		#draw the center point as a blue pixel
+		#orig_img_view[(b.max_y+b.min_y)/2][(b.max_x+b.min_x)/2].green = 0;
+		#orig_img_view[(b.max_y+b.min_y)/2][(b.max_x+b.min_x)/2].blue = quantumify(255);
 
 	end
+
+	find_bounding_rect(orig_img_view, img_list, blobs)
+
+	orig_img_view.sync
 
 	if(blobs.length > 0)
 		orig_img_view.sync
